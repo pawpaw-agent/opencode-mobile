@@ -1,0 +1,13 @@
+{
+  "name": "pi-mobile-wrapper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mobile app wrapper for pi-web — PWA + Android WebView shell",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js --dev"
+  },
+  "dependencies": {
+    "@agegr/pi-web": "latest"
+  }
+}
