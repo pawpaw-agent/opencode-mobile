@@ -18,9 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,17 +35,15 @@ class MainActivity : ComponentActivity() {
                     onSurface = androidx.compose.ui.graphics.Color.White,
                 )
             ) {
-                val navController = rememberNavController()
-                NavHost(navController, startDestination = "connect") {
-                    composable("connect") {
-                        ConnectScreen(
-                            onConnected = { url -> navController.navigate("webview/$url") }
-                        )
-                    }
-                    composable("webview/{url}") { backStackEntry ->
-                        val url = backStackEntry.arguments?.getString("url") ?: return@composable
-                        PiWebView(url, onDisconnect = { navController.popBackStack() })
-                    }
+                // 用状态传递 URL，避免 Navigation URI 编码问题
+                var connectedUrl by remember { mutableStateOf("") }
+
+                if (connectedUrl.isEmpty()) {
+                    ConnectScreen(
+                        onConnected = { url -> connectedUrl = url }
+                    )
+                } else {
+                    PiWebView(connectedUrl, onDisconnect = { connectedUrl = "" })
                 }
             }
         }
