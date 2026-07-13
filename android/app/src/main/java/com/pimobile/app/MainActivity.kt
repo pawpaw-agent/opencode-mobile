@@ -68,10 +68,7 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 } else {
-                    PiWebView(connectedUrl, onDisconnect = {
-                        prefs.edit().remove("url").apply()
-                        connectedUrl = ""
-                    })
+                    PiWebView(connectedUrl)
                 }
             }
         }
@@ -229,102 +226,37 @@ fun ConnectScreen(onConnected: (String) -> Unit) {
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun PiWebView(url: String, onDisconnect: () -> Unit) {
-    var loading by remember { mutableStateOf(true) }
-    var title by remember { mutableStateOf("Pi Mobile") }
-
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Top bar
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 4.dp,
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TextButton(onClick = onDisconnect) {
-                        Text("← Disconnect", color = MaterialTheme.colorScheme.secondary)
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    if (loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+fun PiWebView(url: String) {
+    AndroidView(
+        factory = { context ->
+            WebView(context).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
+                settings.apply {
+                    javaScriptEnabled = true
+                    domStorageEnabled = true
+                    allowFileAccess = false
+                    allowContentAccess = false
+                    builtInZoomControls = true
+                    displayZoomControls = false
+                    setSupportZoom(true)
+                    userAgentString = settings.userAgentString.replace(
+                        "Android", "PiMobile/1.0 Android"
                     )
+                    loadWithOverviewMode = true
+                    useWideViewPort = true
                 }
+                webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(
+                        view: WebView?,
+                        request: WebResourceRequest?
+                    ): Boolean = false
+                }
+                loadUrl(url)
             }
-
-            // WebView
-            AndroidView(
-                factory = { context ->
-                    WebView(context).apply {
-                        layoutParams = FrameLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                        )
-
-                        settings.apply {
-                            javaScriptEnabled = true
-                            domStorageEnabled = true
-                            allowFileAccess = false
-                            allowContentAccess = false
-                            builtInZoomControls = true
-                            displayZoomControls = false
-                            setSupportZoom(true)
-                            userAgentString = settings.userAgentString.replace(
-                                "Android", "PiMobile/1.0 Android"
-                            )
-                            // Enable modern web features
-                            loadWithOverviewMode = true
-                            useWideViewPort = true
-                        }
-
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                                loading = true
-                            }
-
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                loading = false
-                            }
-
-                            override fun shouldOverrideUrlLoading(
-                                view: WebView?,
-                                request: WebResourceRequest?
-                            ): Boolean {
-                                return false // Load all URLs inside WebView
-                            }
-                        }
-
-                        webChromeClient = object : WebChromeClient() {
-                            override fun onReceivedTitle(view: WebView?, t: String?) {
-                                title = t ?: "Pi Mobile"
-                            }
-                        }
-
-                        loadUrl(url)
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-    }
+        },
+        modifier = Modifier.fillMaxSize(),
+    )
 }
