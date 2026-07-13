@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(android.graphics.Color.parseColor("#1A1A2E"))
+            setBackgroundColor(android.graphics.Color.RED)
         }
 
         // WebView fills entire screen
@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(bg)
+            setBackgroundColor(android.graphics.Color.BLUE)
         }
 
         val column = LinearLayout(this).apply {
