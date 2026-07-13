@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 
@@ -26,6 +27,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.decorView.systemUiVisibility = (
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+        )
         setContent {
             val prefs = LocalContext.current.getSharedPreferences("pi-mobile", Context.MODE_PRIVATE)
 
