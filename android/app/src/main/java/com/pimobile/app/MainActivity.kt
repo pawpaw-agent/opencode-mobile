@@ -62,6 +62,7 @@ class MainActivity : ComponentActivity() {
         connectView = createConnectView(prefs)
         root.addView(connectView)
 
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
         setContentView(root)
         applyFullscreen()
 
@@ -181,6 +182,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun applyFullscreen() {
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
         window.decorView.systemUiVisibility = (
             View.SYSTEM_UI_FLAG_FULLSCREEN or
             View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
