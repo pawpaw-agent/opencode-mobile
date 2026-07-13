@@ -53,9 +53,7 @@ class MainActivity : ComponentActivity() {
                 useWideViewPort = true
             }
             webViewClient = object : WebViewClient() {
-                override fun onPageFinished(view: WebView?, url: String?) {
-                    applyFullscreen()
-                }
+                override fun onPageFinished(view: WebView?, url: String?) = Unit
             }
         }
         root.addView(webView)
@@ -70,7 +68,6 @@ class MainActivity : ComponentActivity() {
         }
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
         setContentView(root)
-        applyFullscreen()
 
         val savedUrl = prefs.getString("url", null)
         if (savedUrl != null) {
@@ -130,8 +127,8 @@ class MainActivity : ComponentActivity() {
         ).apply { topMargin = dp(12) })
 
         val portInput = EditText(this).apply {
-            hint = "30142"
-            setText("30142")
+            hint = "30141"
+            setText("30141")
             setTextColor(0xFFFFFFFF.toInt())
             setHintTextColor(0x80FFFFFF.toInt())
             setBackgroundColor(0x33FFFFFF.toInt())
@@ -149,12 +146,11 @@ class MainActivity : ComponentActivity() {
             setOnClickListener {
                 val host = hostInput.text.toString().trim()
                 if (host.isBlank()) return@setOnClickListener
-                val port = portInput.text.toString().trim().ifEmpty { "30142" }
+                val port = portInput.text.toString().trim().ifEmpty { "30141" }
                 val url = "http://$host:$port"
                 connectView?.visibility = View.GONE
                 prefs.edit().putString("url", url).apply()
                 webView?.loadUrl(url)
-                applyFullscreen()
             }
         }
         column.addView(connectBtn, LinearLayout.LayoutParams(
@@ -162,7 +158,7 @@ class MainActivity : ComponentActivity() {
         ).apply { topMargin = dp(12) })
 
         val footer = TextView(this).apply {
-            text = "Make sure pi-web is running on your laptop:\ncd pi-mobile && node server/index.js"
+            text = "Enter your pi-web server address to connect"
             textSize = 12f
             setTextColor(0x80FFFFFF.toInt())
             gravity = android.view.Gravity.CENTER
