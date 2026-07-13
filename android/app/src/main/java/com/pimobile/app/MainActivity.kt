@@ -1,6 +1,7 @@
 package com.pimobile.app
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.ViewGroup
@@ -16,13 +17,32 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Fullscreen immersive mode
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.hide(android.view.WindowInsets.Type.systemBars())
+            window.insetsController?.systemBarsBehavior =
+                android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+                android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            )
+        }
         super.onCreate(savedInstanceState)
         setContent {
+            val prefs = LocalContext.current.getSharedPreferences("pi-mobile", Context.MODE_PRIVATE)
+
             MaterialTheme(
                 colorScheme = darkColorScheme(
                     primary = androidx.compose.ui.graphics.Color(0xFF0F3460),
@@ -35,15 +55,20 @@ class MainActivity : ComponentActivity() {
                     onSurface = androidx.compose.ui.graphics.Color.White,
                 )
             ) {
-                // 用状态传递 URL，避免 Navigation URI 编码问题
-                var connectedUrl by remember { mutableStateOf("") }
+                var connectedUrl by remember { mutableStateOf(prefs.getString("url", "") ?: "") }
 
                 if (connectedUrl.isEmpty()) {
                     ConnectScreen(
-                        onConnected = { url -> connectedUrl = url }
+                        onConnected = { url ->
+                            prefs.edit().putString("url", url).apply()
+                            connectedUrl = url
+                        }
                     )
                 } else {
-                    PiWebView(connectedUrl, onDisconnect = { connectedUrl = "" })
+                    PiWebView(connectedUrl, onDisconnect = {
+                        prefs.edit().remove("url").apply()
+                        connectedUrl = ""
+                    })
                 }
             }
         }
@@ -78,7 +103,7 @@ fun ConnectScreen(onConnected: (String) -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Connect to your Pi coding agent",
+                text = "Connect to pi-web on your laptop",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             )
@@ -191,7 +216,7 @@ fun ConnectScreen(onConnected: (String) -> Unit) {
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Make sure pi-web is running on your laptop:\npi-mobile-server",
+                text = "Make sure pi-web is running on your laptop:\ncd pi-mobile && node server/index.js",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
             )

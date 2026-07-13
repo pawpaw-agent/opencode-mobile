@@ -83,7 +83,7 @@ async function startPiWeb() {
 const MANIFEST = {
   name: 'Pi Coding Agent',
   short_name: 'Pi',
-  description: 'Pi coding agent mobile interface',
+  description: 'Mobile client for pi-web — access Pi coding assistant from your phone',
   start_url: '/',
   display: 'standalone',
   orientation: 'portrait',

@@ -1,5 +1,5 @@
 {
-  "name": "pi-mobile-wrapper",
+  "name": "pi-mobile",
   "version": "1.0.0",
   "private": true,
   "description": "Mobile app wrapper for pi-web — PWA + Android WebView shell",

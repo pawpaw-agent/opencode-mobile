@@ -1,6 +1,6 @@
 # pi-mobile
 
-把 Pi 编码助手装进口袋。
+在手机上通过 pi-web 使用 Pi 编码助手。
 
 ## 架构
 
@@ -14,8 +14,8 @@
         │
 ┌───────┼────────── 笔记本 ─────────────────┐
 │       ▼                                   │
-│  pi-mobile-wrapper server (端口 30142)    │
-│    │  ← PWA manifest + 代理               │
+│  pi-mobile (端口 30142)                    │
+│    │  ← PWA manifest + 反向代理            │
 │    ▼                                      │
 │  pi-web (端口 30141)                      │
 │    │  ← Next.js Web UI                    │

@@ -8,5 +8,6 @@
         <item name="colorOnSecondary">#ffffff</item>
         <item name="android:statusBarColor">#0a2647</item>
         <item name="android:navigationBarColor">#0a2647</item>
+        <item name="android:windowFullscreen">true</item>
     </style>
 </resources>
