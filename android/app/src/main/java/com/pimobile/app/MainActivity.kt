@@ -2,13 +2,8 @@ package com.pimobile.app
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Bitmap
-import androidx.activity.enableEdgeToEdge
-import android.os.Build
 import android.os.Bundle
 import android.view.ViewGroup
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -19,16 +14,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.ui.viewinterop.AndroidView
+import android.graphics.Color
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        // Must be set before setContent on Samsung
+        window.decorView.systemUiVisibility = (
+            android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+            android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+            android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+        )
+
         setContent {
             val prefs = LocalContext.current.getSharedPreferences("pi-mobile", Context.MODE_PRIVATE)
 
@@ -66,7 +69,10 @@ class MainActivity : ComponentActivity() {
             window.decorView.systemUiVisibility = (
                 android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
                 android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
             )
         }
     }
@@ -81,9 +87,7 @@ fun ConnectScreen(onConnected: (String) -> Unit) {
     var testing by remember { mutableStateOf(false) }
 
     Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .consumeWindowInsets(WindowInsets(0, 0, 0, 0)),
+        modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
     ) {
         Column(
@@ -116,10 +120,6 @@ fun ConnectScreen(onConnected: (String) -> Unit) {
                 placeholder = { Text("100.x.x.x or hostname.ts.net") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.secondary,
-                    cursorColor = MaterialTheme.colorScheme.secondary,
-                ),
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -131,10 +131,6 @@ fun ConnectScreen(onConnected: (String) -> Unit) {
                 placeholder = { Text("30142") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.secondary,
-                    cursorColor = MaterialTheme.colorScheme.secondary,
-                ),
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -146,10 +142,6 @@ fun ConnectScreen(onConnected: (String) -> Unit) {
                 placeholder = { Text("Bearer token if set") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.secondary,
-                    cursorColor = MaterialTheme.colorScheme.secondary,
-                ),
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -160,22 +152,14 @@ fun ConnectScreen(onConnected: (String) -> Unit) {
                     error = null
                     val cleanHost = host.trim().removePrefix("http://").removePrefix("https://")
                     val url = "http://$cleanHost:$port"
-                    // Quick connectivity test
                     Thread {
                         try {
                             val conn = java.net.URL("$url/health").openConnection() as java.net.HttpURLConnection
                             conn.connectTimeout = 5000
                             conn.readTimeout = 5000
-                            if (token.isNotBlank()) {
-                                conn.setRequestProperty("Authorization", "Bearer $token")
-                            }
                             val code = conn.responseCode
                             testing = false
-                            if (code == 200) {
-                                onConnected(url)
-                            } else {
-                                // Still try connecting even if health fails
-                                testing = false
+                            if (code == 200 || true) { // connect regardless
                                 onConnected(url)
                             }
                         } catch (e: Exception) {
@@ -185,35 +169,28 @@ fun ConnectScreen(onConnected: (String) -> Unit) {
                     }.start()
                 },
                 enabled = host.isNotBlank() && !testing,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondary,
                 ),
             ) {
-                    if (testing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onSecondary,
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Text("Connect")
-                    }
+                if (testing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = MaterialTheme.colorScheme.onSecondary,
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Text("Connect")
                 }
+            }
 
             if (error != null) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = error!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                Text(text = error!!, color = MaterialTheme.colorScheme.error)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-
             Text(
                 text = "Make sure pi-web is running on your laptop:\ncd pi-mobile && node server/index.js",
                 style = MaterialTheme.typography.bodySmall,
@@ -248,10 +225,17 @@ fun PiWebView(url: String) {
                     useWideViewPort = true
                 }
                 webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(
-                        view: WebView?,
-                        request: WebResourceRequest?
-                    ): Boolean = false
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        // Re-apply fullscreen flags after page load
+                        (context as? android.app.Activity)?.window?.decorView?.systemUiVisibility = (
+                            android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+                            android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                            android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                            android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                            android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                            android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        )
+                    }
                 }
                 loadUrl(url)
             }
