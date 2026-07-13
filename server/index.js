@@ -17,25 +17,6 @@ const HOST = process.env.PI_MOBILE_HOST || '0.0.0.0';
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
-// ── Find pi-web binary ────────────────────────────────────────────
-function findPiWeb() {
-  // 1. Try npx global
-  const npxPath = process.env.HOME + '/.npm/_npx/*/node_modules/.bin/pi-web';
-  const glob = require('child_process').execSync(
-    `ls -t ${npxPath} 2>/dev/null | head -1`,
-    { encoding: 'utf8', shell: true }
-  ).trim();
-  if (glob) return glob;
-
-  // 2. Try which
-  try {
-    return require('child_process').execSync('which pi-web', { encoding: 'utf8' }).trim();
-  } catch {}
-
-  // 3. Fall back to npx
-  return 'npx';
-}
-
 // ── Check if pi-web is already running ──────────────────────────────
 function isPortInUse(port) {
   return new Promise((resolve) => {
@@ -54,7 +35,7 @@ async function startPiWeb() {
     return null;
   }
 
-  const bin = findPiWeb();
+  const bin = process.env.PI_WEB_BIN || 'npx';
   const args = bin === 'npx'
     ? ['@agegr/pi-web@latest', '--port', String(PI_WEB_PORT)]
     : ['--port', String(PI_WEB_PORT)];
@@ -144,14 +125,7 @@ function startPWAServer() {
       }
     }
 
-    // Health check
-    if (req.url === '/health') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', piWebPort: PI_WEB_PORT }));
-      return;
-    }
-
-    // Proxy to pi-web for manifest.json and sw.js injection
+    // Proxy to pi-web
     const options = {
       hostname: '127.0.0.1',
       port: PI_WEB_PORT,

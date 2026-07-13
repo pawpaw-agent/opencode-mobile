@@ -80,7 +80,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun createConnectView(prefs: android.content.SharedPreferences): View {
-        val bg = 0xFF1A1A2E.toInt()
         val accent = 0xFFE94560.toInt()
 
         val wrapper = FrameLayout(this).apply {
