@@ -28,6 +28,7 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
+            setBackgroundColor(android.graphics.Color.parseColor("#1A1A2E"))
         }
 
         // WebView fills entire screen
