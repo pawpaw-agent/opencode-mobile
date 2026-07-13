@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(android.graphics.Color.RED)
+            setBackgroundColor(android.graphics.Color.parseColor("#1A1A2E"))
         }
 
         // WebView fills entire screen
@@ -63,6 +63,10 @@ class MainActivity : ComponentActivity() {
         connectView = createConnectView(prefs)
         root.addView(connectView)
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.attributes.layoutInDisplayCutoutMode =
+                android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
         setContentView(root)
         applyFullscreen()
@@ -83,7 +87,7 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(android.graphics.Color.BLUE)
+            setBackgroundColor(android.graphics.Color.parseColor("#1A1A2E"))
         }
 
         val column = LinearLayout(this).apply {
