@@ -3,6 +3,7 @@ package com.pimobile.app
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
+import android.app.Activity
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -14,9 +15,7 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.activity.ComponentActivity
-
-class MainActivity : ComponentActivity() {
+class MainActivity : Activity() {
     private var webView: WebView? = null
     private var connectView: View? = null
 
