@@ -34,6 +34,7 @@ class PiSseService : Service() {
     private var client: OkHttpClient? = null
     private var eventSource: EventSource? = null
     private var hadRunning = false
+    private var lastRunningIds: Set<String> = emptySet()
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var pendingFinishNotify: Runnable? = null
 
@@ -77,8 +78,9 @@ class PiSseService : Service() {
                     val json = JSONObject(data)
                     if (json.optString("type") == "running") {
                         val ids = json.optJSONArray("runningSessionIds")
-                        val running = ids != null && ids.length() > 0
-                        onRunningStateChanged(running)
+                        val idSet = mutableSetOf<String>()
+                        if (ids != null) for (i in 0 until ids.length()) idSet.add(ids.getString(i))
+                        onRunningStateChanged(idSet.isNotEmpty(), idSet)
                     }
                 } catch (e: Exception) {
                     // 非 JSON 帧（如心跳注释）忽略
@@ -99,18 +101,21 @@ class PiSseService : Service() {
      * 状态机：非空→空（持续 3s 仍空）= 任务完成，发通知。
      * 去抖动避免短暂中间态误报。
      */
-    private fun onRunningStateChanged(running: Boolean) {
-        Log.d(TAG, "running=$running hadRunning=$hadRunning")
+    private fun onRunningStateChanged(running: Boolean, ids: Set<String>) {
+        Log.d(TAG, "running=$running hadRunning=$hadRunning ids=$ids")
         if (running) {
+            lastRunningIds = ids
             hadRunning = true
             pendingFinishNotify?.let { handler.removeCallbacks(it) }
             pendingFinishNotify = null
         } else if (hadRunning) {
-            // 非空→空，3s 去抖动
+            val finishedIds = lastRunningIds
             pendingFinishNotify?.let { handler.removeCallbacks(it) }
             val r = Runnable {
-                notifyTaskFinished()
+                // 在后台线程拉会话信息（避免 NetworkOnMainThread）
+                Thread { notifyTaskFinished(finishedIds) }.start()
                 hadRunning = false
+                lastRunningIds = emptySet()
                 pendingFinishNotify = null
             }
             pendingFinishNotify = r
@@ -118,8 +123,41 @@ class PiSseService : Service() {
         }
     }
 
-    private fun notifyTaskFinished() {
-        Log.d(TAG, "task finished → notify")
+    /**
+     * 拉取刚结束的会话信息，取 firstMessage（用户原始 prompt）作为通知正文，
+     * 让用户知道「哪个任务」完成了。拉取失败则回退到通用的「任务完成」。
+     */
+    private fun fetchSessionLabel(ids: Set<String>): String? {
+        if (ids.isEmpty()) return null
+        val c = client ?: return null
+        val baseUrl = getSharedPreferences("pi-mobile", Context.MODE_PRIVATE)
+            .getString("url", null) ?: return null
+        return try {
+            val req = Request.Builder().url(baseUrl.trimEnd('/') + "/api/sessions").build()
+            c.newCall(req).execute().use { resp ->
+                val arr = JSONObject(resp.body!!.string()).optJSONArray("sessions") ?: return null
+                for (i in 0 until arr.length()) {
+                    val s = arr.getJSONObject(i)
+                    if (ids.contains(s.optString("id"))) {
+                        val first = s.optString("firstMessage", "")
+                        if (first.isNotBlank() && first != "(no messages)") return first.replace('\n', ' ').take(50)
+                        val name = s.optString("name", "")
+                        if (name.isNotBlank()) return name.take(50)
+                        val cwd = s.optString("cwd", "")
+                        return cwd.substringAfterLast('/').ifBlank { null }
+                    }
+                }
+                null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "fetch session label failed: ${e.message}")
+            null
+        }
+    }
+
+    private fun notifyTaskFinished(ids: Set<String>) {
+        val label = fetchSessionLabel(ids) ?: "任务完成"
+        Log.d(TAG, "task finished → notify: $label")
         val openIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -129,7 +167,7 @@ class PiSseService : Service() {
         )
         val n = Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("Pi Mobile")
-            .setContentText("✅ 任务完成")
+            .setContentText("✅ $label")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentIntent(pi)
             .setAutoCancel(true)
