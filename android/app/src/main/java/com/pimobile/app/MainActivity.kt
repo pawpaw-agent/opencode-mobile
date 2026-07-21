@@ -15,6 +15,7 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+
 class MainActivity : Activity() {
     private var webView: WebView? = null
     private var connectView: View? = null
@@ -232,6 +233,23 @@ class MainActivity : Activity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) applyFullscreen()
+    }
+
+    /**
+     * 返回键处理：
+     * 1. 连接屏可见 → 退后台保活
+     * 2. WebView 有浏览历史 → 回退一页
+     * 3. 否则 → 退后台保活（不 finish，保留 Application 级 WebView 会话）
+     * 用平台 onBackPressed 而非 androidx OnBackPressedDispatcher，
+     * 因为本项目不引 androidx.activity 依赖（纯 WebView 壳哲学）。
+     */
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        when {
+            connectView?.visibility == View.VISIBLE -> moveTaskToBack(true)
+            webView?.canGoBack() == true -> webView?.goBack()
+            else -> moveTaskToBack(true)
+        }
     }
 
     // 不在 onDestroy 里 destroy WebView —— 它是 Application 级单例，要跨 Activity 存活。
