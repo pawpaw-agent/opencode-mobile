@@ -85,9 +85,9 @@ class MainActivity : Activity() {
         val currentUrl = webView?.url
         val needLoad = currentUrl.isNullOrBlank() && savedUrl != null
         Log.d("PiMobile", "onCreate: reused=$reused currentUrl=$currentUrl needLoad=$needLoad")
-        if (needLoad) {
+        if (needLoad && savedUrl != null) {
             connectView?.visibility = View.GONE
-            webView?.loadUrl(savedUrl)
+            webView?.loadUrl(savedUrl)  // smart-cast: 非空
         } else if (reused && !currentUrl.isNullOrBlank()) {
             // WebView 已有页面，直接隐藏连接屏
             connectView?.visibility = View.GONE
