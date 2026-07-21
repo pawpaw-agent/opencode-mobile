@@ -1,13 +1,14 @@
 package com.pimobile.app
 
-import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.os.Build
-import android.app.Activity
 import android.os.Bundle
 import android.util.Log
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
@@ -20,35 +21,34 @@ class MainActivity : Activity() {
     private var webView: WebView? = null
     private var connectView: View? = null
 
+    private companion object {
+        const val COL_BG = 0xFF1A1A2E.toInt()
+        const val COL_ACCENT = 0xFFE94560.toInt()
+        const val COL_TITLE = 0xFF0F3460.toInt()
+        const val COL_TEXT = 0xFFFFFFFF.toInt()
+        const val COL_HINT = 0x80FFFFFF.toInt()
+        const val COL_INPUT_BG = 0x33FFFFFF.toInt()
+        const val COL_MUTED = 0xB3FFFFFF.toInt()
+        const val COL_DIM = 0x80FFFFFF.toInt()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val prefs = getSharedPreferences("pi-mobile", Context.MODE_PRIVATE)
-        val app = PiApp.get(this)
+        val app = application as PiApp
 
         val root = FrameLayout(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            setBackgroundColor(android.graphics.Color.parseColor("#1A1A2E"))
+            setBackgroundColor(COL_BG)
         }
 
         // ── 复用 Application 级单例 WebView ──────────────────────────────
-        // 进程存活期间，WebView 跨 Activity 实例存活：
-        // - 转屏（configChanges 声明后 Activity 不重建，WebView 不销毁）
-        // - 从最近任务返回（进程存活时 Activity 可能重建，但 WebView 复用）
-        // 关键：只在没有加载过任何 URL 时才 loadUrl，避免覆盖上次的页面状态。
+        // 进程存活期间 WebView 跨 Activity 存活（转屏 configChanges 不重建 + 最近任务返回复用）。
+        // 关键：只在 currentUrl 为空时才 loadUrl，避免覆盖上次的页面状态。
         val reused = app.retainedWebView != null
         webView = (app.retainedWebView ?: WebView(this).also { app.retainedWebView = it }).apply {
-            // 若之前 attach 到别的父 ViewGroup，先移除
             (parent as? ViewGroup)?.removeView(this)
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
             if (!reused) {
-                // 首次创建：配置 settings + webViewClient
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
@@ -57,128 +57,78 @@ class MainActivity : Activity() {
                     builtInZoomControls = true
                     displayZoomControls = false
                     setSupportZoom(true)
-                    userAgentString = settings.userAgentString.replace(
-                        "Android", "PiMobile/1.0 Android"
-                    )
+                    userAgentString = settings.userAgentString.replace("Android", "PiMobile/1.0 Android")
                     loadWithOverviewMode = true
                     useWideViewPort = true
                 }
-                webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView?, url: String?) = Unit
-                }
+                webViewClient = WebViewClient() // 默认 client，让链接在 WebView 内打开
             }
         }
         root.addView(webView)
 
-        // Connect screen (initially hidden if URL saved OR WebView already loaded)
         connectView = createConnectView(prefs)
         root.addView(connectView)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.attributes.layoutInDisplayCutoutMode =
-                android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
-        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
+        window.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
         setContentView(root)
 
         val savedUrl = prefs.getString("url", null)
-        // 只在"从未加载过"时才 loadUrl；复用情况下 WebView 保留着上次的页面，不动它
         val currentUrl = webView?.url
         val needLoad = currentUrl.isNullOrBlank() && savedUrl != null
         Log.d("PiMobile", "onCreate: reused=$reused currentUrl=$currentUrl needLoad=$needLoad")
         if (needLoad && savedUrl != null) {
             connectView?.visibility = View.GONE
-            webView?.loadUrl(savedUrl)  // smart-cast: 非空
+            webView?.loadUrl(savedUrl)
         } else if (reused && !currentUrl.isNullOrBlank()) {
-            // WebView 已有页面，直接隐藏连接屏
             connectView?.visibility = View.GONE
         }
     }
 
     override fun onResume() {
         super.onResume()
-        // 恢复 WebView 定时器与渲染，避免后台时 JS 定时器空转耗电
         webView?.onResume()
         webView?.resumeTimers()
     }
 
     override fun onPause() {
         super.onPause()
-        // 暂停 WebView 定时器与渲染（省电）。注意：这会暂停 pi-web 内的 EventSource 吗？
-        // EventSource 是网络流，pauseTimers 暂停的是 JS 定时器，不直接断开 SSE 连接。
-        // 但 App 切后台后 WebView 进程可能被冻结，SSE 会被系统暂停 —— 这是后续后台
-        // 通知方案（specialUse FGS + 原生 OkHttp SSE）要解决的问题。
+        // 暂停定时器省电；SSE 连接本身不断（由后台通知方案的 FGS 接管）
         webView?.onPause()
         webView?.pauseTimers()
     }
 
     private fun createConnectView(prefs: android.content.SharedPreferences): View {
-        val accent = 0xFFE94560.toInt()
-
-        val wrapper = FrameLayout(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            setBackgroundColor(android.graphics.Color.parseColor("#1A1A2E"))
-        }
-
         val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(COL_BG)
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            ).also { it.gravity = android.view.Gravity.CENTER }
-            orientation = LinearLayout.VERTICAL
+            ).apply { gravity = Gravity.CENTER }
         }
-        wrapper.addView(column)
-
-        val title = TextView(this).apply {
-            text = "π Pi Mobile"
-            textSize = 28f
-            setTextColor(0xFF0F3460.toInt())
+        val wrapper = FrameLayout(this).apply {
+            setBackgroundColor(COL_BG)
+            addView(column)
         }
-        column.addView(title)
 
-        val subtitle = TextView(this).apply {
-            text = "Connect to pi-web on your laptop"
-            textSize = 14f
-            setTextColor(0xB3FFFFFF.toInt())
-        }
-        column.addView(subtitle, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(8) })
+        column.addView(TextView(this).apply {
+            text = "π Pi Mobile"; textSize = 28f; setTextColor(COL_TITLE)
+        })
+        column.addView(TextView(this).apply {
+            text = "Connect to pi-web on your laptop"; textSize = 14f; setTextColor(COL_MUTED)
+        }, rowParams(top = dp(8)))
 
-        // Spacer
-        column.addView(createSpacer(dp(32)))
+        column.addView(spacer(dp(32)))
+        val hostInput = column.addEditText("100.x.x.x or hostname.ts.net")
+        val portInput = column.addEditText("30141", "30141")
+        column.addView(spacer(dp(24)))
 
-        val hostInput = EditText(this).apply {
-            hint = "100.x.x.x or hostname.ts.net"
-            setTextColor(0xFFFFFFFF.toInt())
-            setHintTextColor(0x80FFFFFF.toInt())
-            setBackgroundColor(0x33FFFFFF.toInt())
-        }
-        column.addView(hostInput, LinearLayout.LayoutParams(
-            dp(300), ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(12) })
-
-        val portInput = EditText(this).apply {
-            hint = "30141"
-            setText("30141")
-            setTextColor(0xFFFFFFFF.toInt())
-            setHintTextColor(0x80FFFFFF.toInt())
-            setBackgroundColor(0x33FFFFFF.toInt())
-        }
-        column.addView(portInput, LinearLayout.LayoutParams(
-            dp(300), ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(12) })
-
-        column.addView(createSpacer(dp(24)))
-
-        val connectBtn = Button(this).apply {
-            text = "Connect"
-            setTextColor(0xFFFFFFFF.toInt())
-            setBackgroundColor(accent)
+        column.addView(Button(this).apply {
+            text = "Connect"; setTextColor(COL_TEXT); setBackgroundColor(COL_ACCENT)
             setOnClickListener {
                 val host = hostInput.text.toString().trim()
                 if (host.isBlank()) return@setOnClickListener
@@ -188,38 +138,34 @@ class MainActivity : Activity() {
                 prefs.edit().putString("url", url).apply()
                 webView?.loadUrl(url)
             }
-        }
-        column.addView(connectBtn, LinearLayout.LayoutParams(
-            dp(300), dp(48)
-        ).apply { topMargin = dp(12) })
+        }, rowParams(top = dp(12), height = dp(48), width = dp(300)))
 
-        val footer = TextView(this).apply {
+        column.addView(TextView(this).apply {
             text = "Enter your pi-web server address to connect"
-            textSize = 12f
-            setTextColor(0x80FFFFFF.toInt())
-            gravity = android.view.Gravity.CENTER
-        }
-        column.addView(footer, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(24) })
-
+            textSize = 12f; setTextColor(COL_DIM); gravity = Gravity.CENTER
+        }, rowParams(top = dp(24)))
         return wrapper
     }
 
-    private fun createSpacer(h: Int): View {
-        return View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(1, h)
-        }
-    }
+    // ── 小工具 ──────────────────────────────────────────────────────
+    private fun spacer(h: Int) = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, h) }
 
-    private fun dp(n: Int): Int {
-        val scale = resources.displayMetrics.density
-        return (n * scale + 0.5f).toInt()
-    }
+    private fun LinearLayout.addEditText(hint: String, default: String? = null): EditText =
+        EditText(this.context).apply {
+            this.hint = hint
+            setTextColor(COL_TEXT); setHintTextColor(COL_HINT); setBackgroundColor(COL_INPUT_BG)
+            default?.let { setText(it) }
+        }.also { addView(it, rowParams(top = dp(12), width = dp(300))) }
+
+    private fun rowParams(top: Int = 0, width: Int = ViewGroup.LayoutParams.WRAP_CONTENT,
+                          height: Int = ViewGroup.LayoutParams.WRAP_CONTENT) =
+        LinearLayout.LayoutParams(width, height).apply { topMargin = top }
+
+    private fun dp(n: Int) = (n * resources.displayMetrics.density + 0.5f).toInt()
 
     private fun applyFullscreen() {
-        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
+        window.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
+        @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (
             View.SYSTEM_UI_FLAG_FULLSCREEN or
             View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
@@ -236,12 +182,8 @@ class MainActivity : Activity() {
     }
 
     /**
-     * 返回键处理：
-     * 1. 连接屏可见 → 退后台保活
-     * 2. WebView 有浏览历史 → 回退一页
-     * 3. 否则 → 退后台保活（不 finish，保留 Application 级 WebView 会话）
-     * 用平台 onBackPressed 而非 androidx OnBackPressedDispatcher，
-     * 因为本项目不引 androidx.activity 依赖（纯 WebView 壳哲学）。
+     * 返回键：连接屏可见→退后台；WebView 有历史→goBack；否则退后台保活。
+     * 用平台 onBackPressed（无 androidx.activity 依赖，契合纯 WebView 壳）。
      */
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
@@ -251,7 +193,4 @@ class MainActivity : Activity() {
             else -> moveTaskToBack(true)
         }
     }
-
-    // 不在 onDestroy 里 destroy WebView —— 它是 Application 级单例，要跨 Activity 存活。
-    // 系统会在进程销毁时自动清理。
 }
