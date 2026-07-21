@@ -15,6 +15,8 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.TextView
 
 class MainActivity : Activity() {
@@ -123,8 +125,19 @@ class MainActivity : Activity() {
         }, rowParams(top = dp(8)))
 
         column.addView(spacer(dp(32)))
+
+        // 协议选择（http / https），支持 HTTPS 隧道场景
+        val httpBtn = RadioButton(this).apply { id = View.generateViewId(); text = "http"; setTextColor(COL_TEXT) }
+        val httpsBtn = RadioButton(this).apply { id = View.generateViewId(); text = "https"; setTextColor(COL_TEXT) }
+        val protocolGroup = RadioGroup(this).apply {
+            orientation = RadioGroup.HORIZONTAL
+            addView(httpBtn); addView(httpsBtn)
+            check(httpBtn.id)
+        }
+        column.addView(protocolGroup, rowParams(top = dp(8), width = dp(300)))
+
         val hostInput = column.addEditText("100.x.x.x or hostname.ts.net")
-        val portInput = column.addEditText("30141", "30141")
+        val portInput = column.addEditText("7777", "7777")
         column.addView(spacer(dp(24)))
 
         column.addView(Button(this).apply {
@@ -132,8 +145,9 @@ class MainActivity : Activity() {
             setOnClickListener {
                 val host = hostInput.text.toString().trim()
                 if (host.isBlank()) return@setOnClickListener
-                val port = portInput.text.toString().trim().ifEmpty { "30141" }
-                val url = "http://$host:$port"
+                val port = portInput.text.toString().trim().ifEmpty { "7777" }
+                val proto = if (protocolGroup.checkedRadioButtonId == httpsBtn.id) "https" else "http"
+                val url = "$proto://$host:$port"
                 connectView?.visibility = View.GONE
                 prefs.edit().putString("url", url).apply()
                 webView?.loadUrl(url)

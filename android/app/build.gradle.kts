@@ -7,6 +7,17 @@ android {
     namespace = "com.pimobile.app"
     compileSdk = 34
 
+    // 固定 debug 签名：CI 与本地用同一 keystore，
+    // 保证 debug APK 可直接 install -r 覆盖升级，不必先 uninstall。
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.pimobile.app"
         minSdk = 26
@@ -16,6 +27,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
