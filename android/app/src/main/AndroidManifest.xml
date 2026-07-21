@@ -5,8 +5,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
+        android:name=".PiApp"
         android:allowBackup="true"
-        
         android:label="Pi Mobile"
         android:supportsRtl="true"
         android:theme="@style/Theme.PiMobile"
@@ -15,6 +15,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
