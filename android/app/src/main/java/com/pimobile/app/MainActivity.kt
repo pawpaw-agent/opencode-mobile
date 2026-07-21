@@ -18,6 +18,9 @@ import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 
 class MainActivity : Activity() {
     private var webView: WebView? = null
@@ -88,6 +91,18 @@ class MainActivity : Activity() {
         } else if (reused && !currentUrl.isNullOrBlank()) {
             connectView?.visibility = View.GONE
         }
+
+        // 前后台检测：退到后台时启动 SSE 服务，回到前台时停止
+        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStop(owner: LifecycleOwner) {
+                Log.d("PiMobile", "app→background: start SSE service")
+                PiSseService.start(this@MainActivity)
+            }
+            override fun onStart(owner: LifecycleOwner) {
+                Log.d("PiMobile", "app→foreground: stop SSE service")
+                PiSseService.stop(this@MainActivity)
+            }
+        })
     }
 
     override fun onResume() {

@@ -51,4 +51,9 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.webkit:webkit:1.9.0")
+    // SSE 长连接（后台任务完成通知）
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:okhttp-sse:4.12.0")
+    // 生命周期感知（前后台检测启停 Service）
+    implementation("androidx.lifecycle:lifecycle-process:2.7.0")
 }
